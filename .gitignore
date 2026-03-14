@@ -2,7 +2,9 @@ venv/
 __pycache__/
 *.pyc
 .env
-images/
+images/*
+!images/Dockerfile.*
+!images/*.Dockerfile
 data/state.json
 images/*.qcow2
 images/base-*.qcow2

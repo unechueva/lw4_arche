@@ -4,3 +4,5 @@ __pycache__/
 .env
 images/
 data/state.json
+images/*.qcow2
+images/base-*.qcow2

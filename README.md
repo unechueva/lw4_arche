@@ -24,14 +24,16 @@ QEMU VM:
 Порт определяется как max(existing) + 1.
 Если объектов нет, используется стартовый порт.
 
-## Как запустить проект
+## Тестирование
 
-1. `source venv/bin/activate`
-2. `uvicorn backend.api:app --reload`  ← backend
-3. В новом терминале: `streamlit run frontend/app.py`
+1. Запустить backend:  
+   `uvicorn backend.api:app --reload`
 
-Порты:
-- Docker: 2222+
-- VM: 2300+
+2. Запустить frontend:  
+   `streamlit run frontend/app.py`
+
+3. В браузере: http://localhost:8501  
+   Создавайте ресурсы типа "docker", подключайтесь по SSH (root/toor)
 
 Логин/пароль в контейнерах: root / toor
+Порты Docker: 2222 и выше

@@ -7,7 +7,10 @@ def load_state():
     if not os.path.exists(STATE_FILE):
         return {}
     with open(STATE_FILE, 'r') as f:
-        return json.load(f)
+        content = f.read().strip()
+        if not content:
+            return {}
+        return json.loads(content)
 
 def save_state(state):
     os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)

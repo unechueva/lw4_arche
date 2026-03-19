@@ -4,15 +4,18 @@ import os
 STATE_FILE = "data/state.json"
 
 def get_next_port(resource_type: str) -> int:
-    """Возвращает следующий свободный порт: 2222 для docker, 2300 для vm"""
     start_port = 2222 if resource_type == "docker" else 2300
+    
     if not os.path.exists(STATE_FILE):
         return start_port
     
-    with open(STATE_FILE, "r") as f:
-        state = json.load(f)
+    with open(STATE_FILE, 'r') as f:
+        content = f.read().strip()
+        if not content:
+            return start_port
+        state = json.loads(content)
     
-    used_ports = [obj.get("port", 0) for obj in state.values()]
+    used_ports = [obj.get("port", 0) for obj in state.values() if isinstance(obj.get("port"), int)]
     if not used_ports:
         return start_port
     return max(used_ports) + 1

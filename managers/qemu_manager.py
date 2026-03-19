@@ -1,4 +1,4 @@
-kimport subprocess
+import subprocess
 import time
 import os
 import signal
@@ -13,7 +13,7 @@ class QemuManager:
         self.images_dir = "images"
 
     def create_vm(self, cpu: int, ram: int, port: int, vm_id: str) -> dict:
-        """Создаёт VM на Linux (совместимо с main)"""
+        """Создаёт новую виртуальную машину"""
         if cpu not in (1, 2):
             raise ValueError("CPU только 1 или 2")
         if ram not in (512, 1024):
@@ -47,26 +47,35 @@ class QemuManager:
             "port": port,
             "status": "running",
             "pid": pid,
-            "image_path": new_image,
-            "created_at": datetime.now().isoformat()
+            "image_path": new_image
         }
 
         add_object(vm_id, data)
-        return data
+        return {
+            "id": vm_id,
+            "type": "vm",
+            "cpu": cpu,
+            "ram": ram,
+            "port": port,
+            "status": "running"
+        }
 
     def _get_qemu_pid(self, vm_id: str) -> int:
-        """Находим PID процесса qemu по имени файла"""
+        """Находит PID процесса QEMU по имени файла образа"""
         try:
             result = subprocess.run(
                 ["pgrep", "-f", f"{vm_id}.qcow2"],
-                capture_output=True, text=True
+                capture_output=True, text=True, check=True
             )
-            return int(result.stdout.strip().split()[0])
+            pids = result.stdout.strip().split()
+            if pids:
+                return int(pids[0])
         except:
-            return 0
+            pass
+        return 0
 
     def delete_vm(self, vm_id: str):
-        """Удаляет VM"""
+        """Удаляет виртуальную машину"""
         state = load_state()
         if vm_id not in state:
             return
@@ -81,18 +90,40 @@ class QemuManager:
                 time.sleep(1)
                 if os.path.exists(f"/proc/{pid}"):
                     os.kill(pid, signal.SIGKILL)
-            except:
+            except ProcessLookupError:
                 pass
+            except Exception as e:
+                print(f"Ошибка при kill PID {pid}: {e}")
 
         if image_path and os.path.exists(image_path):
             try:
                 os.remove(image_path)
-            except:
-                pass
+            except Exception as e:
+                print(f"Ошибка удаления образа {image_path}: {e}")
 
         delete_object(vm_id)
 
     def list_vms(self):
-        """Возвращает только VM из state"""
+        """Возвращает список всех VM с актуальным статусом"""
         state = load_state()
-        return [v for v in state.values() if v.get("type") == "vm"]
+        vms = []
+        for vm_id, info in state.items():
+            if info.get("type") != "vm":
+                continue
+
+            pid = info.get("pid")
+            running = False
+            if pid:
+                try:
+                    os.kill(pid, 0)
+                    running = True
+                except ProcessLookupError:
+                    running = False
+                except Exception:
+                    running = False
+
+            info_copy = info.copy()
+            info_copy["status"] = "running" if running else "stopped"
+            vms.append(info_copy)
+
+        return vms

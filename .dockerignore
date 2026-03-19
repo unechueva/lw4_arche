@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+.env
+images/*.qcow2
+images/*.iso
+images/base-*.qcow2
+data/state.json
+.git
+.gitignore
+README.md
+INTERFACES.md

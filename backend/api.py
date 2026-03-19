@@ -1,36 +1,65 @@
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from backend import state_manager
 from managers.docker_manager import DockerManager
+from managers.qemu_manager import QemuManager
 from backend.port_manager import PortManager
-from backend.state_manager import StateManager
 
-app = FastAPI(title="LW4 Docker Backend")
+app = FastAPI(title="Hosting Lab API")
 
 docker_manager = DockerManager()
+qemu_manager = QemuManager()
 
-@app.get("/")
-def root():
-    return {"status": "ok"}
+class CreateRequest(BaseModel):
+    type: str  # "docker" | "vm"
+    cpu: int
+    ram: int
 
-@app.post("/docker/create")
-def create_docker(os: str = "ubuntu", cpu: int = 1, ram: int = 512):
-    port = PortManager.get_next_docker_port()
-    state = StateManager.load()
-    next_num = len([k for k in state if k.startswith("docker_")]) + 1
-    instance_id = f"docker_{next_num}"
+@app.post("/create")
+def create_instance(request: CreateRequest):
+    state = state_manager.load_state()
+    count = len([k for k in state if k.startswith(request.type + "_")])
+    new_id = f"{request.type}_{count + 1}"
 
-    try:
-        instance = docker_manager.create_container(cpu, ram, port, instance_id, os=os)
-        StateManager.add_instance(instance)
-        return instance
-    except Exception as e:
-        raise HTTPException(400, str(e))
+    port = PortManager.get_next_port(request.type)
 
-@app.get("/docker/list")
-def list_docker():
-    return docker_manager.list_containers()
+    if request.type == "docker":
+        try:
+            instance = docker_manager.create_container(request.cpu, request.ram, port, new_id)
+            state_manager.add_object(new_id, instance)
+            return {"message": "created", "id": new_id, "details": instance}
+        except Exception as e:
+            raise HTTPException(400, str(e))
+    
+    elif request.type == "vm":
+        data = {
+            "type": "vm",
+            "cpu": request.cpu,
+            "ram": request.ram,
+            "port": port,
+            "status": "created (заглушка VM)"
+        }
+        state_manager.add_object(new_id, data)
+        return {"message": "created", "id": new_id, "details": data}
+    
+    else:
+        raise HTTPException(400, "Invalid type")
 
-@app.post("/docker/delete/{instance_id}")
-def delete_docker(instance_id: str):
-    docker_manager.delete_container(instance_id)
-    StateManager.update_status(instance_id, "deleted")
-    return {"success": True}
+@app.get("/list")
+def get_all_instances():
+    return state_manager.load_state()
+
+@app.delete("/delete/{instance_id}")
+def delete_instance(instance_id: str):
+    state = state_manager.load_state()
+    if instance_id not in state:
+        raise HTTPException(404, "Not found")
+    
+    if instance_id.startswith("docker_"):
+        docker_manager.delete_container(instance_id)
+    
+    # elif instance_id.startswith("vm_"):
+    #     qemu_manager.delete_vm(instance_id)
+    
+    state_manager.delete_object(instance_id)
+    return {"message": "deleted", "id": instance_id}

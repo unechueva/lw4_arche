@@ -1,33 +1,26 @@
 import json
 import os
-from pathlib import Path
 
-STATE_PATH = "app/data/state.json"
+STATE_FILE = "data/state.json"
 
-class StateManager:
-    @staticmethod
-    def load():
-        os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
-        if not os.path.exists(STATE_PATH):
-            return {}
-        with open(STATE_PATH, "r") as f:
-            data = json.load(f)
-            return data if isinstance(data, dict) else {}
+def load_state():
+    if not os.path.exists(STATE_FILE):
+        return {}
+    with open(STATE_FILE, 'r') as f:
+        return json.load(f)
 
-    @staticmethod
-    def save(state):
-        with open(STATE_PATH, "w") as f:
-            json.dump(state, f, indent=4)
+def save_state(state):
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    with open(STATE_FILE, 'w') as f:
+        json.dump(state, f, indent=4)
 
-    @staticmethod
-    def add_instance(instance: dict):
-        state = StateManager.load()
-        state[instance["id"]] = instance
-        StateManager.save(state)
+def add_object(obj_id, data):
+    state = load_state()
+    state[obj_id] = data
+    save_state(state)
 
-    @staticmethod
-    def update_status(instance_id: str, status: str):
-        state = StateManager.load()
-        if instance_id in state:
-            state[instance_id]["status"] = status
-            StateManager.save(state)
+def delete_object(obj_id):
+    state = load_state()
+    if obj_id in state:
+        del state[obj_id]
+        save_state(state)
